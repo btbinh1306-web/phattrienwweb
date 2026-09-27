@@ -8,6 +8,7 @@ import { HSK2_BAI4_TO_6_EXAMS } from './hsk2Bai4To6';
 import { HSK1_MOCK_01_EXAM } from './hsk1Mock01';
 import { HSK1_MOCK_02_EXAM } from './hsk1Mock02';
 import { HSK1_ENTRANCE_EXAM } from './hsk1EntranceTest';
+import { HSK234_MOCK_EXAMS } from './hsk234MockExams';
 import {
   HSK1_PDF_TRIAL_01_EXAM,
   HSK1_PDF_TRIAL_02_EXAM,
@@ -122,6 +123,7 @@ const SAMPLE_EXAMS_WITH_LOCAL_AUDIO: ExamLesson[] = [
   HSK1_TRIAL_02_EXAM,
   HSK1_PDF_TRIAL_01_EXAM,
   HSK1_PDF_TRIAL_02_EXAM,
+  ...HSK234_MOCK_EXAMS,
   {
     id: 'hsk1-b1-ai-xiaoyu',
     title: 'HSK 1 - Bài 1: 小语，你好！ (Đọc câu, Nối từ, Xếp câu & Dịch thuật)',
