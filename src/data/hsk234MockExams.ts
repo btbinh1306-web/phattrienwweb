@@ -139,13 +139,15 @@ const hsk4Listening = (id: string): LessonItem[] => [
 const hsk4Reading = (id: string, number: 1 | 2): LessonItem[] => {
   const bank = options(number === 1 ? ['逐渐', '始终', '辛苦', '保持', '适合', '及时'] : ['由于', '否则', '无论', '甚至', '仍然', '难免']);
   return [
-    item(`${id}-read-p1`, 'fill', '第一、二部分：选择词语填空。', { wordBank: bank, items: Array.from({ length: 10 }, (_, index) => row(`${id}-r${33 + index}`, 33 + index, `第${33 + index}题：请选择合适的词语。`, bank[index % bank.length].id)) }),
-    item(`${id}-read-p2`, 'reading_comprehension_choice', '第三、四部分：阅读短文，选择正确答案。', { questions: Array.from({ length: 32 }, (_, index) => ({ ...row(`${id}-r${43 + index}`, 43 + index, `第${43 + index}题：阅读短文后回答问题。`, ['B', 'D', 'A', 'C'][index % 4]), options: options(['选项 A', '选项 B', '选项 C', '选项 D']) })) })
+    item(`${id}-read-p1`, 'fill', '第一部分：选择词语填空。', { wordBank: bank, items: Array.from({ length: 5 }, (_, index) => row(`${id}-r${33 + index}`, 33 + index, `第${33 + index}题：请选择合适的词语。`, bank[index % bank.length].id)) }),
+    item(`${id}-read-p2`, 'fill', '第二部分：选择词语填空。', { wordBank: bank, items: Array.from({ length: 5 }, (_, index) => row(`${id}-r${38 + index}`, 38 + index, `第${38 + index}题：请选择合适的词语。`, bank[(index + 2) % bank.length].id)) }),
+    item(`${id}-read-p3`, 'reading_comprehension_choice', '第三部分：阅读短文，选择正确答案。', { questions: Array.from({ length: 8 }, (_, index) => ({ ...row(`${id}-r${43 + index}`, 43 + index, `第${43 + index}题：阅读短文后回答问题。`, ['B', 'D', 'A', 'D', 'C', 'B', 'C', 'D'][index]), options: options(['选项 A', '选项 B', '选项 C', '选项 D']) })) }),
+    item(`${id}-read-p4`, 'reading_comprehension_choice', '第四部分：阅读短文，选择正确答案。', { questions: Array.from({ length: 14 }, (_, index) => ({ ...row(`${id}-r${51 + index}`, 51 + index, `第${51 + index}题：阅读短文后回答问题。`, ['B', 'B', 'C', 'A', 'B', 'A', 'C', 'B', 'D', 'A', 'C', 'B', 'A', 'D'][index]), options: options(['选项 A', '选项 B', '选项 C', '选项 D']) })) })
   ];
 };
 const makeHsk4 = (number: 1 | 2): ExamLesson => {
   const id = `hsk4-mock-0${number}`;
-  const essays = (number === 1 ? ['他经常和他的大学同学聚餐。', '这副眼镜她戴正合适。', '毕业那天，妈妈来学校看他。', '周末丈夫和妻子一起在厨房做饭。', '请介绍一个你最喜欢的地方。'] : ['我正在打印文件。', '请先扫码。', '这件事需要大家一起讨论。', '他想当一名导游。', '我们要养成节约的习惯。']).map((suggestedAnswer, index) => ({ id: `${id}-w${65 + index}`, type: 'essay' as const, prompt: `第${65 + index}题：请根据图片或关键词写句子。`, suggestedAnswer }));
+  const essays = (number === 1 ? ['他经常和他的大学同学聚餐。', '这副眼镜她戴正合适。', '毕业那天，妈妈来学校看他。', '周末丈夫和妻子一起在厨房做饭。', '他们正在认真地讨论问题。', '请介绍一个你最喜欢的地方。'] : ['我正在打印文件。', '请先扫码。', '这件事需要大家一起讨论。', '他想当一名导游。', '我们要养成节约的习惯。', '请介绍一个你最喜欢的地方。']).map((suggestedAnswer, index) => ({ id: `${id}-w${65 + index}`, type: 'essay' as const, prompt: `第${65 + index}题：请根据图片或关键词写句子。`, suggestedAnswer }));
   return { id, title: `HSK 4 (3.0) - Đề thi thử số ${number}`, level: 'HSK 4', description: 'Đề thi thử HSK4 (3.0) theo PDF gốc, gồm 70 câu nghe, đọc và viết.', timeLimitEnabled: true, timeLimitMinutes: 100, mcQuestions: [], fillQuestions: [], arrangeQuestions: [], readingPassages: [], listeningQuestions: [], essayQuestions: essays, speakingQuestions: [], translationQuestions: [], handwritingQuestions: [], sections: [audioSection(`${id}-listening`, 'Phần 1 · 听力 · Nghe (32 câu)', `/audio/hsk4_mock_0${number}.mp3`, hsk4Listening(id)), { id: `${id}-reading`, title: 'Phần 2 · 阅读 · Đọc (32 câu)', items: hsk4Reading(id, number) }, { id: `${id}-writing`, title: 'Phần 3 · 写作 · Viết (6 câu · tự luận)', items: [] }] };
 };
 
