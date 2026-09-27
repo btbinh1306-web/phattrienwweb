@@ -36,5 +36,6 @@ export function getConfiguredGasWebAppUrl(): string {
   }
 
   const envUrl = ((import.meta as any).env?.VITE_GAS_SHEET_URL as string)?.trim() || '';
-  return migrateGasWebAppUrl(envUrl) || DEFAULT_GAS_WEB_APP_URL;
+  if (envUrl) return migrateGasWebAppUrl(envUrl);
+  return (import.meta as any).env?.DEV ? '' : DEFAULT_GAS_WEB_APP_URL;
 }

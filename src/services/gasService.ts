@@ -67,10 +67,15 @@ export const normalizePercent = (rawPercent: any, correct: number, total: number
 };
 
 const normalizeTeacherExerciseScore = (value: unknown, fallback: string | number = ''): string | number => {
-  if ((typeof value === 'string' || typeof value === 'number') && String(value).trim() !== '') {
-    return value;
+  if (typeof value === 'string' || typeof value === 'number') {
+    const text = String(value).trim();
+    if (text && !/^(?:undefined|null|\[object object\])$/i.test(text)) return value;
   }
-  return (typeof fallback === 'string' || typeof fallback === 'number') ? fallback : '';
+  if (typeof fallback === 'string' || typeof fallback === 'number') {
+    const text = String(fallback).trim();
+    if (text && !/^(?:undefined|null|\[object object\])$/i.test(text)) return fallback;
+  }
+  return '';
 };
 
 const getTeacherExerciseScore = (row: any, fallback: string | number = ''): string | number => {
@@ -391,6 +396,8 @@ export const submitToGas = async (
   // Prepare full local record first
   const newSubRecord: SubmissionData = {
     id: localId,
+    studentId: payload.studentId,
+    assignmentId: payload.assignmentId,
     time: payload.time || fullTime,
     name: payload.name,
     class: payload.class,
@@ -427,6 +434,8 @@ export const submitToGas = async (
   try {
     const bodyData = {
       action: payload.action || 'submit',
+      studentId: payload.studentId,
+      assignmentId: payload.assignmentId,
       time: payload.time || fullTime,
       name: payload.name,
       class: payload.class,
@@ -514,13 +523,16 @@ export const fetchTeacherSubmissions = async (
   let gasReadSucceeded = false;
   let gasReadError = '';
   if (config.sheetUrl && config.sheetUrl.trim() !== '') {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 75000);
     try {
       const url = new URL(config.sheetUrl.trim());
       url.searchParams.append('mode', 'teacher');
       url.searchParams.append('pass', pass);
 
       const res = await fetch(getGasRequestUrl(url.toString()), {
-        method: 'GET'
+        method: 'GET',
+        signal: controller.signal
       });
 
       if (!res.ok) {
@@ -587,6 +599,8 @@ export const fetchTeacherSubmissions = async (
     } catch (err: any) {
       console.warn('GAS GET teacher error:', err);
       gasReadError = 'Không thể kết nối Google Sheet';
+    } finally {
+      clearTimeout(timeoutId);
     }
   }
 

@@ -9,6 +9,7 @@ import {
   uploadMediaToGas
 } from './gasCloudService';
 import type { GasMediaFolder } from './gasCloudService';
+import { getStudentAuthHeaders } from './studentAccountService';
 
 /**
  * Client service to communicate with full-stack Express backend server endpoints.
@@ -183,7 +184,7 @@ export async function saveServerSubmission(sub: SubmissionData): Promise<{ ok: b
   try {
     const res = await fetch('/api/submissions', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getStudentAuthHeaders() },
       body: JSON.stringify(sub)
     });
     const data = await res.json();

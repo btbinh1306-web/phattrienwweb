@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AnswerSnapshotItem, AudioRecordItem, SubmissionData, ExamLesson, VocabItem, Question, ReadingPassage } from '../types';
+import { AnswerSnapshotItem, AudioRecordItem, SubmissionData, ExamLesson, VocabItem, Question, ReadingPassage, StudentAccount } from '../types';
 import { SAMPLE_EXAMS } from '../data/sampleExams';
 import {
   deleteSubmissionsInGas,
@@ -39,6 +39,8 @@ import { LessonDataEditor } from './LessonDataEditor';
 import { AudioRecorder } from './AudioRecorder';
 import { HandwritingExerciseEditor } from './exercises/HandwritingExerciseEditor';
 import { HandwritingGradingPanel } from './exercises/HandwritingGradingPanel';
+import { StudentAccountManager } from './StudentAccountManager';
+import { fetchStudentAccounts } from '../services/studentAccountService';
 import { HandwritingExercise, HandwritingSubmission } from '../types/handwriting';
 import {
   getHandwritingExercises,
@@ -80,7 +82,8 @@ import {
   Upload,
   Image as ImageIcon,
   Undo2,
-  Redo2
+  Redo2,
+  UserPlus
 } from 'lucide-react';
 
 type HistoryState<T> = {
@@ -91,6 +94,12 @@ type HistoryState<T> = {
 
 const MAX_LESSON_HISTORY = 50;
 
+const getDisplayTeacherScore = (value: unknown): string => {
+  if (typeof value !== 'string' && typeof value !== 'number') return '';
+  const text = String(value).trim();
+  return /^(?:undefined|null|\[object object\])$/i.test(text) ? '' : text;
+};
+
 const cloneExam = (exam: ExamLesson): ExamLesson => structuredClone(exam);
 
 const normalizeLessonFilterValue = (value: string): string =>
@@ -100,6 +109,33 @@ const normalizeLessonFilterValue = (value: string): string =>
     .replace(/\s*\/\s*/g, '/')
     .trim()
     .toLocaleLowerCase('vi');
+
+const normalizeStudentIdentity = (value: string): string =>
+  value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/gi, 'd')
+    .replace(/[^a-z0-9]/gi, '')
+    .toLocaleLowerCase('vi')
+    .replace(/^lephuonglinh$/i, 'phuonglinh');
+
+const resolveSubmissionStudentName = (
+  submissionName: string,
+  accounts: StudentAccount[]
+): string => {
+  const normalizedSubmissionName = normalizeStudentIdentity(submissionName);
+  if (!normalizedSubmissionName) return submissionName;
+
+  const account = accounts.find((candidate) => {
+    const identities = [candidate.username, candidate.name].map(normalizeStudentIdentity).filter(Boolean);
+    return identities.some((identity) => (
+      identity === normalizedSubmissionName ||
+      normalizedSubmissionName.startsWith(identity)
+    ));
+  });
+
+  return account?.name || submissionName;
+};
 
 const removeAnswerSnapshot = (value?: string): string =>
   String(value || '').replace(/\n?\[ANSWER_SNAPSHOT\]:\s*\[[\s\S]*\]\s*$/, '').trim();
@@ -460,7 +496,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
-  const [activeTab, setActiveTab] = useState<'submissions' | 'handwriting' | 'editor' | 'import_json'>('submissions');
+  const [activeTab, setActiveTab] = useState<'submissions' | 'accounts' | 'handwriting' | 'editor' | 'import_json'>('submissions');
 
   // Handwriting exercises state
   const [hwExercises, setHwExercises] = useState<HandwritingExercise[]>(() => getHandwritingExercises());
@@ -496,11 +532,13 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
   }, []);
 
   const [submissions, setSubmissions] = useState<SubmissionData[]>([]);
+  const [studentAccounts, setStudentAccounts] = useState<StudentAccount[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Filters & Search
   const [searchQuery, setSearchQuery] = useState('');
+  const [studentFilter, setStudentFilter] = useState('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'Chờ chấm' | 'Đã chấm'>('ALL');
   const [lessonLevelFilter, setLessonLevelFilter] = useState('ALL');
   const [lessonFilter, setLessonFilter] = useState('ALL');
@@ -538,6 +576,15 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
       return true;
     });
   }, [lessonLevelFilter, studentExamGroups]);
+
+  const studentFilterOptions = useMemo(
+    () => Array.from(new Set<string>([
+      ...studentAccounts.map((account) => account.name.trim()),
+      ...submissions.map((submission) => submission.name.trim())
+    ].filter(Boolean)))
+      .sort((nameA, nameB) => nameA.localeCompare(nameB, 'vi')),
+    [studentAccounts, submissions]
+  );
 
   useEffect(() => {
     if (lessonFilter !== 'ALL' && !studentExamOptions.some((exam) => exam.title === lessonFilter)) {
@@ -1023,9 +1070,16 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
     setIsLoading(true);
     setErrorMsg(null);
     setDeleteNotice(null);
-    const res = await fetchTeacherSubmissions(pass);
+    const [res, accounts] = await Promise.all([
+      fetchTeacherSubmissions(pass),
+      fetchStudentAccounts(pass).catch(() => [])
+    ]);
+    setStudentAccounts(accounts);
     if (res.ok && res.rows) {
-      setSubmissions(res.rows);
+      setSubmissions(res.rows.map((submission) => ({
+        ...submission,
+        name: resolveSubmissionStudentName(submission.name, accounts)
+      })));
     } else {
       setSubmissions([]);
       setErrorMsg(res.error || 'Không thể lấy dữ liệu bài nộp');
@@ -1086,11 +1140,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
       return;
     }
     setSelectedSub(sub);
-    setSpeakScoreInput(
-      sub.speakScore === undefined || sub.speakScore === null
-        ? ''
-        : String(sub.speakScore)
-    );
+    setSpeakScoreInput(getDisplayTeacherScore(sub.speakScore));
     const storedReviewMetadata = parseTeacherItemMetadata(sub.comment || sub.teacherComment || '');
     const submissionExam = allExams.find((exam) => exam.id === sub.lesson || matchesCatalogLessonTitle(sub.lesson, exam.title));
     const legacyCommentKeyMap = new Map<string, string>();
@@ -1749,6 +1799,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
     );
 
   const filteredSubmissions = submissions.filter((sub) => {
+    const matchesStudent = studentFilter === 'ALL' || sub.name.trim() === studentFilter;
     const matchesStatus = statusFilter === 'ALL' || sub.status === statusFilter;
     const normalizedLesson = sub.lesson.trim();
     const isHandwritingSubmission = getIsHandwritingSubmission(sub);
@@ -1769,7 +1820,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
       sub.id.toLowerCase().includes(q) ||
       sub.lesson.toLowerCase().includes(q);
 
-    return matchesStatus && matchesLevel && matchesLesson && matchesSearch;
+    return matchesStudent && matchesStatus && matchesLevel && matchesLesson && matchesSearch;
   });
 
   const submissionGroups = Array.from(
@@ -2350,6 +2401,18 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
 
           <button
             type="button"
+            onClick={() => setActiveTab('accounts')}
+            className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition cursor-pointer ${
+              activeTab === 'accounts'
+                ? 'bg-red-700 text-white shadow-xs'
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+            }`}
+          >
+            <UserPlus className="w-4 h-4" /> Tài khoản học sinh
+          </button>
+
+          <button
+            type="button"
             onClick={() => setActiveTab('import_json')}
             className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition cursor-pointer ${
               activeTab === 'import_json'
@@ -2374,6 +2437,10 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
         </div>
       </div>
 
+      {activeTab === 'accounts' && (
+        <StudentAccountManager exams={allExams} teacherPassword={passwordInput} />
+      )}
+
       {/* TAB 1: SUBMISSIONS & GRADING */}
       {activeTab === 'submissions' && (
         <div className="space-y-4">
@@ -2392,6 +2459,21 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
 
             <div className="flex flex-wrap items-center gap-2 shrink-0">
               <Filter className="w-4 h-4 text-slate-400" />
+              <select
+                value={studentFilter}
+                onChange={(e) => setStudentFilter(e.target.value)}
+                aria-label="Học sinh"
+                title="Học sinh"
+                className="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white font-medium outline-none focus:ring-2 focus:ring-teal-500 cursor-pointer max-w-[16rem]"
+              >
+                <option value="ALL">Tất cả học sinh</option>
+                {studentFilterOptions.map((studentName) => (
+                  <option key={studentName} value={studentName}>
+                    {studentName}
+                  </option>
+                ))}
+              </select>
+
               <select
                 value={lessonLevelFilter}
                 onChange={(e) => {
@@ -2508,6 +2590,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                           const isHw = getIsHandwritingSubmission(sub);
                           const isDeleting = deletingSubmissionId === sub.id;
                           const regradedMetrics = isHw ? null : getRegradedSubmissionMetrics(sub, allExams);
+                          const teacherScore = getDisplayTeacherScore(sub.speakScore);
 
                           return (
                             <tr key={sub.id} className="hover:bg-slate-50/80 transition">
@@ -2540,9 +2623,9 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                                             </span>
                                           </>
                                         )}
-                                        {!regradedMetrics?.trialScore && sub.speakScore && (
+                                        {!regradedMetrics?.trialScore && teacherScore && (
                                           <span className="font-bold text-indigo-800 block">
-                                            Điểm GV: {sub.speakScore}
+                                            Điểm GV: {teacherScore}
                                           </span>
                                         )}
                                         <span className="text-xs text-slate-500 block">
@@ -4352,7 +4435,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                 <span className="font-bold text-indigo-800 text-sm">
                   {selectedTrialScore
                     ? '200 điểm · không cần chấm tay'
-                    : (selectedSub.speakScore || 'Chưa nhập')}
+                    : (getDisplayTeacherScore(selectedSub.speakScore) || 'Chưa nhập')}
                 </span>
               </div>
               <div>

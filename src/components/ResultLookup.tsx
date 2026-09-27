@@ -34,6 +34,7 @@ import {
 interface ResultLookupProps {
   initialSubmissionId?: string;
   customExams?: ExamLesson[];
+  hideSearch?: boolean;
 }
 
 type TeacherReviewStatus = 'Chưa chấm' | 'Đúng' | 'Sai' | 'Cần sửa';
@@ -179,7 +180,11 @@ const parseAnswerSnapshot = (value?: string): AnswerSnapshotItem[] => {
 const removeAnswerSnapshot = (value: string): string =>
   value.replace(/\n?\[ANSWER_SNAPSHOT\]:\s*\[[\s\S]*\]\s*$/, '').trim();
 
-export const ResultLookup: React.FC<ResultLookupProps> = ({ initialSubmissionId = '', customExams = [] }) => {
+export const ResultLookup: React.FC<ResultLookupProps> = ({
+  initialSubmissionId = '',
+  customExams = [],
+  hideSearch = false
+}) => {
   const [submissionId, setSubmissionId] = useState(initialSubmissionId);
   const [result, setResult] = useState<SubmissionData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -1263,7 +1268,7 @@ export const ResultLookup: React.FC<ResultLookupProps> = ({ initialSubmissionId 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       {/* Header Search Card */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4 text-center">
+      {!hideSearch && <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4 text-center">
         <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mx-auto text-amber-800">
           <BookOpen className="w-6 h-6" />
         </div>
@@ -1295,7 +1300,7 @@ export const ResultLookup: React.FC<ResultLookupProps> = ({ initialSubmissionId 
             {isLoading ? 'Đang tra...' : 'Xem Kết Quả'}
           </button>
         </form>
-      </div>
+      </div>}
 
       {errorMsg && (
         <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-800 flex items-center gap-2">
