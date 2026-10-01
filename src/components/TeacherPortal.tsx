@@ -2063,9 +2063,10 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
   const areTeacherAnswersEquivalent = (question: Question, snapshot?: AnswerSnapshotItem): boolean => {
     const userAnswer = String(snapshot?.userAnswer ?? '').trim();
     const currentCorrectAnswer = getCurrentAnswerCandidates(question)[0] || '';
-    const correctAnswer = requiresTeacherReview(question)
-      ? String(snapshot?.correctAnswer ?? currentCorrectAnswer).trim()
-      : currentCorrectAnswer;
+    if (!requiresTeacherReview(question)) {
+      return matchesCurrentAnswer(question, userAnswer);
+    }
+    const correctAnswer = String(snapshot?.correctAnswer ?? currentCorrectAnswer).trim();
     if (!userAnswer || !correctAnswer) return false;
 
     const userOptionId = getTeacherOptionId(question, userAnswer);
