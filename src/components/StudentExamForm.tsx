@@ -1974,6 +1974,9 @@ export const StudentExamForm: React.FC<StudentExamFormProps> = ({
                     const subQuestions = q.subQuestions?.length ? q.subQuestions : [q];
                     const isConversation = !!q.subQuestions?.length;
                     const isTfType = q.type === 'listening_tf' || q.type === 'listening_true_false';
+                    const hasTtsPlayLimit = !q.audioUrl && !q.audioPromptUrl && q.maxAudioPlayCount === 2;
+                    const ttsPlayKey = `${structuredAudioScope}::${q.id}`;
+                    const ttsPlaysUsed = listeningPlayCounts[ttsPlayKey] || 0;
 
                     return (
                       <div id={getQuestionAnchor(q.id)} key={q.id} className="scroll-mt-32 p-4 rounded-xl bg-indigo-50/40 border border-indigo-100 space-y-3.5">
@@ -2018,10 +2021,17 @@ export const StudentExamForm: React.FC<StudentExamFormProps> = ({
                           ) : (
                             <button
                               type="button"
-                              onClick={() => speakText(q.audioText || q.pinyin || q.prompt)}
-                              className="inline-flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-bold text-xs px-3.5 py-2 rounded-lg transition cursor-pointer shadow-xs"
+                              onClick={() => {
+                                if (hasTtsPlayLimit && !handleStructuredAudioAttempt(ttsPlayKey).allowed) return;
+                                speakText(q.audioText || q.pinyin || q.prompt);
+                              }}
+                              disabled={hasTtsPlayLimit && ttsPlaysUsed >= 2}
+                              className="inline-flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 disabled:cursor-not-allowed disabled:bg-slate-400 text-white font-bold text-xs px-3.5 py-2 rounded-lg transition cursor-pointer shadow-xs"
                             >
-                              <Volume2 className="w-4 h-4" /> Bấm để phát âm thanh (Giọng đọc tự động TTS)
+                              <Volume2 className="w-4 h-4" />
+                              {hasTtsPlayLimit
+                                ? ttsPlaysUsed >= 2 ? 'Đã nghe đủ 2 lần' : `Bấm để phát âm thanh (${ttsPlaysUsed}/2)`
+                                : 'Bấm để phát âm thanh (Giọng đọc tự động TTS)'}
                             </button>
                           )}
                         </div>
