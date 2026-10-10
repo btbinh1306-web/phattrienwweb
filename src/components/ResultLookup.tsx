@@ -764,18 +764,20 @@ export const ResultLookup: React.FC<ResultLookupProps> = ({
       // when the answer key itself did not change.
       if (!subjective && correctAnswer) {
         const userAnswer = safeText(savedItem.userAnswer).trim();
+        const acceptedAnswers = sourceQuestion?.question.acceptableAnswers || correctAnswer;
         return {
           ...savedItem,
           correctAnswer,
           status: !userAnswer
             ? 'unanswered'
-            : (answerMatchesAccepted(userAnswer, correctAnswer) ? 'correct' : 'wrong')
+            : (answerMatchesAccepted(userAnswer, acceptedAnswers) ? 'correct' : 'wrong')
         };
       }
 
       return { ...savedItem, correctAnswer };
     }
 
+    const acceptedAnswers = sourceQuestion?.question.acceptableAnswers || correctAnswer;
     const legacyAnswerChanged = Boolean(
       legacyWrong?.correctAns && correctAnswer &&
       !answersMatchForRegrade(legacyWrong.correctAns, correctAnswer)
@@ -791,7 +793,7 @@ export const ResultLookup: React.FC<ResultLookupProps> = ({
       correctAnswer,
       teacherReviewRequired,
       status: legacyWrong
-        ? (legacyAnswerChanged && answerMatchesAccepted(legacyUserAnswer, correctAnswer) ? 'correct' : 'wrong')
+        ? (legacyAnswerChanged && answerMatchesAccepted(legacyUserAnswer, acceptedAnswers) ? 'correct' : 'wrong')
         : (media.subjectiveKind || teacherReviewRequired
           ? 'manual'
           : !resultExam
