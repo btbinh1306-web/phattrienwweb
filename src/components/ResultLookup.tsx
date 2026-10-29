@@ -114,9 +114,11 @@ const answersMatchForRegrade = (left: unknown, right: unknown): boolean => {
   return Boolean(normalizedLeft && normalizedRight && normalizedLeft === normalizedRight);
 };
 
-const answerMatchesAccepted = (answer: unknown, acceptedAnswers: unknown): boolean => {
+const answerMatchesAccepted = (answer: unknown, acceptedAnswers: unknown, answerContains?: unknown): boolean => {
   const normalizedAnswer = normalizeAnswerForRegrade(answer);
   if (!normalizedAnswer) return false;
+  const requiredText = normalizeAnswerForRegrade(answerContains);
+  if (requiredText) return normalizedAnswer.includes(requiredText);
   return safeText(acceptedAnswers)
     .split('|')
     .map(normalizeAnswerForRegrade)
@@ -765,12 +767,13 @@ export const ResultLookup: React.FC<ResultLookupProps> = ({
       if (!subjective && correctAnswer) {
         const userAnswer = safeText(savedItem.userAnswer).trim();
         const acceptedAnswers = sourceQuestion?.question.acceptableAnswers || correctAnswer;
+        const answerContains = sourceQuestion?.question.answerContains;
         return {
           ...savedItem,
           correctAnswer,
           status: !userAnswer
             ? 'unanswered'
-            : (answerMatchesAccepted(userAnswer, acceptedAnswers) ? 'correct' : 'wrong')
+            : (answerMatchesAccepted(userAnswer, acceptedAnswers, answerContains) ? 'correct' : 'wrong')
         };
       }
 
@@ -778,6 +781,7 @@ export const ResultLookup: React.FC<ResultLookupProps> = ({
     }
 
     const acceptedAnswers = sourceQuestion?.question.acceptableAnswers || correctAnswer;
+    const answerContains = sourceQuestion?.question.answerContains;
     const legacyUserAnswer = legacyWrong?.userAns || '';
 
     return {
@@ -789,7 +793,7 @@ export const ResultLookup: React.FC<ResultLookupProps> = ({
       correctAnswer,
       teacherReviewRequired,
       status: legacyWrong
-        ? (answerMatchesAccepted(legacyUserAnswer, acceptedAnswers) ? 'correct' : 'wrong')
+        ? (answerMatchesAccepted(legacyUserAnswer, acceptedAnswers, answerContains) ? 'correct' : 'wrong')
         : (media.subjectiveKind || teacherReviewRequired
           ? 'manual'
           : !resultExam
